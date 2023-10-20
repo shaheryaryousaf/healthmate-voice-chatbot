@@ -3,6 +3,8 @@ from itertools import zip_longest
 import streamlit as st
 from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
+from langchain.tools import YouTubeSearchTool
+import ast
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from gtts import gTTS
 import pyaudio
@@ -50,7 +52,7 @@ with st.container():
     if st.session_state['key_validation']:
         # LLM
         chat = ChatOpenAI(
-            temperature=0.5, openai_api_key=st.session_state['api_key'], model="gpt-3.5-turbo", max_tokens=300
+            temperature=0.9, openai_api_key=st.session_state['api_key'], model="gpt-3.5-turbo", max_tokens=300
         )
 
         # Constants for Audio File
@@ -87,16 +89,16 @@ with st.container():
                     messages.append(AIMessage(content=ai_msg))
             return messages
 
-        # Submit function
 
+        # Submit function
         def submit():
             st.session_state.entered, st.session_state.input = st.session_state.input, ""
 
         # Create Text Field
         st.text_input("Ask Question", on_change=submit, key="input")
 
-        # Record Audio
 
+        # Record Audio
         def record_audio_to_file():
             stream = audio.open(format=FORMAT, channels=CHANNELS,
                                 rate=RATE, input=True, frames_per_buffer=CHUNK)
@@ -153,5 +155,15 @@ with st.container():
                 tts = gTTS(st.session_state['generated'][m], lang='en')
                 tts.save("custom_audio.mp3")
                 st.audio("custom_audio.mp3")
+                tool = YouTubeSearchTool()
+                response = tool.run(st.session_state['past'][m] + ", 2")
+                if response:
+                    st.subheader("Related Youtube Videos:")
+                    urlsList = ast.literal_eval(response)
+                    columns = st.columns(len(urlsList))
+                    for col, url in zip(columns, urlsList):
+                        cleanUrl = url.split("&pp")[0]
+                        finalUrl = cleanUrl.replace("watch?v=", "embed/")
+                        col.markdown(f'<iframe width="100%" height="250px" src="{finalUrl}" frameborder="0" allowfullscreen></iframe>', unsafe_allow_html=True)
                 message(st.session_state['past'][m],
                         is_user=True, key=str(m)+"_user")
